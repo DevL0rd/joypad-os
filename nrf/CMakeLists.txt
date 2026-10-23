@@ -1,7 +1,8 @@
 # Zephyr app CMakeLists for Joypad on nRF52840 boards
 #
 # Supported boards: xiao_ble (Seeed XIAO), adafruit_feather_nrf52840,
-#                   aprbrother_nrf52840, makerdiary_nrf52840 (MDK USB Dongle)
+#                   aprbrother_nrf52840, makerdiary_nrf52840 (MDK USB Dongle),
+#                   promicro_nrf52840 (nice!nano / SuperMini clones)
 # Supported apps:   bt2usb (default), usb2usb (with MAX3421E FeatherWing),
 #                   btusb2usb (MAX3421E + Bluetooth combined)
 #
@@ -853,7 +854,10 @@ string(TIMESTAMP BUILD_TIME "%Y-%m-%d %H:%M:%S")
 # -DJOYPAD_BOARD (with or without the nrf_ image prefix) silently left it empty
 # here, and the Raytac RX came up identifying as an April Brother, with that
 # board's LED and button pins.
-if(DTC_OVERLAY_FILE MATCHES "raytac_mdbt50q_cx_40")
+if(DTC_OVERLAY_FILE MATCHES "promicro_nrf52840")
+    set(BOARD_DEFINE "BOARD_PROMICRO_NRF52840=1")
+    set(BOARD_NAME_STR "promicro_nrf52840")
+elseif(DTC_OVERLAY_FILE MATCHES "raytac_mdbt50q_cx_40")
     set(BOARD_DEFINE "BOARD_RAYTAC_MDBT50Q_CX40=1")
     set(BOARD_NAME_STR "raytac_mdbt50q_cx_40")
 elseif(DTC_OVERLAY_FILE MATCHES "raytac_mdbt50q_rx")

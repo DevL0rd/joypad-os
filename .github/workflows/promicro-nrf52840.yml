@@ -1,0 +1,81 @@
+name: Pro Micro nRF52840 firmware
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [promicro-nrf52840]
+
+jobs:
+  build:
+    name: build (${{ matrix.app_type }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app_type: [bt2usb, universal]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Install west
+        run: pip3 install west
+
+      - name: Cache nRF Connect SDK
+        uses: actions/cache@v4
+        id: ncs-cache
+        with:
+          path: |
+            nrf/.west
+            nrf/nrf
+            nrf/zephyr
+            nrf/modules
+            nrf/bootloader
+            nrf/tools
+            nrf/nrfxlib
+            nrf/test
+          key: ncs-v3.1.0-${{ runner.os }}
+
+      - name: Initialize nRF Connect SDK
+        if: steps.ncs-cache.outputs.cache-hit != 'true'
+        working-directory: nrf
+        run: |
+          west init -m https://github.com/nrfconnect/sdk-nrf.git --mr v3.1.0
+          west update --narrow -o=--depth=1
+
+      - name: Install Python dependencies
+        working-directory: nrf
+        run: pip3 install -r zephyr/scripts/requirements.txt
+
+      - name: Install Zephyr SDK
+        run: |
+          wget -q https://github.com/zephyrproject-rtos/sdk-ng/releases/download/v0.17.0/zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz
+          tar xf zephyr-sdk-0.17.0_linux-x86_64_minimal.tar.xz -C /opt/
+          /opt/zephyr-sdk-0.17.0/setup.sh -t arm-zephyr-eabi -c
+          echo "ZEPHYR_SDK_INSTALL_DIR=/opt/zephyr-sdk-0.17.0" >> $GITHUB_ENV
+
+      - name: Build ${{ matrix.app_type }} for promicro_nrf52840
+        working-directory: nrf
+        env:
+          GIT_COMMIT: ${{ github.sha }}
+        run: |
+          make build BOARD=promicro_nrf52840 APP_TYPE=${{ matrix.app_type }}
+
+      - name: Check flash layout
+        working-directory: nrf
+        run: |
+          grep -E "app|nvs_storage|adafruit_boot" build/partitions.yml || true
+          ls -l build/nrf/zephyr/zephyr.uf2
+
+      - name: Collect firmware
+        run: |
+          mkdir -p out
+          cp nrf/build/nrf/zephyr/zephyr.uf2 out/joypad_os_${{ matrix.app_type }}_promicro_nrf52840.uf2
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: joypad_os_${{ matrix.app_type }}_promicro_nrf52840
+          path: out/*.uf2
+          if-no-files-found: error
+          retention-days: 30
